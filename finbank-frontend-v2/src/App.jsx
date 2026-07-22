@@ -75,7 +75,7 @@ function Login({ onLogin }) {
 
         {error && <div className="login-error">{error}</div>}
 
-        
+
       </div>
     </div>
   )
@@ -108,7 +108,7 @@ function CustomerTab({ authHeader }) {
         <label>Name</label>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter Your Full Name" />
         <label>Email</label>
-        <input value={email} onChange={e => setEmail(e.target.value)} placeholder= "" />
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="" />
         <label>Phone</label>
         <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter 10-digit Number" />
         <button className="action teal" onClick={createCustomer}>Create customer</button>
@@ -268,6 +268,117 @@ function TransactionTab() {
   )
 }
 
+/* ---------------- Loan tab ---------------- */
+function LoanTab() {
+  const [profileCustId, setProfileCustId] = useState('')
+  const [profileAccId, setProfileAccId] = useState('')
+
+  const [custId, setCustId] = useState('')
+  const [accId, setAccId] = useState('')
+  const [principal, setPrincipal] = useState('')
+  const [interestRate, setInterestRate] = useState('')
+  const [tenureMonths, setTenureMonths] = useState('')
+  const [creditScore, setCreditScore] = useState('')
+
+  const [lookupLoanId, setLookupLoanId] = useState('')
+  const [custLookupId, setCustLookupId] = useState('')
+
+  const [scheduleLoanId, setScheduleLoanId] = useState('')
+  const [repaymentId, setRepaymentId] = useState('')
+  const [npaLoanId, setNpaLoanId] = useState('')
+
+  const [result, setResult] = useState(null)
+
+  const checkProfile = async () => {
+    if (!profileCustId || !profileAccId) return
+    setResult(await callApi(`/loan/credit-profile?custId=${profileCustId}&accId=${profileAccId}`))
+  }
+
+  const applyLoan = async () => {
+    if (!custId || !accId || !principal || !interestRate || !tenureMonths || !creditScore) return
+    const params = new URLSearchParams({
+      custId, accId, principal, interestRate, tenureMonths, creditScore
+    })
+    setResult(await callApi(`/loan/apply?${params.toString()}`, { method: 'POST' }))
+  }
+
+  const getLoan = async () => lookupLoanId && setResult(await callApi(`/loan/${lookupLoanId}`))
+  const getByCustomer = async () => custLookupId && setResult(await callApi(`/loan/customer/${custLookupId}`))
+  const getSchedule = async () => scheduleLoanId && setResult(await callApi(`/loan/${scheduleLoanId}/schedule`))
+  const payInstallment = async () => repaymentId && setResult(await callApi(`/loan/repayment/${repaymentId}/pay`, { method: 'PUT' }))
+  const checkNpa = async () => npaLoanId && setResult(await callApi(`/loan/${npaLoanId}/check-npa`, { method: 'PUT' }))
+
+  return (
+    <>
+      <div className="ledger-card">
+        <h2>Credit profile check</h2>
+        <div className="hint">Aggregated profile from account &amp; transaction history.</div>
+        <label>Customer ID</label>
+        <input value={profileCustId} onChange={e => setProfileCustId(e.target.value)} placeholder="1" />
+        <label>Account ID</label>
+        <input value={profileAccId} onChange={e => setProfileAccId(e.target.value)} placeholder="1" />
+        <button className="action" onClick={checkProfile}>Check profile</button>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Loan application</h2>
+        <label>Customer ID</label>
+        <input value={custId} onChange={e => setCustId(e.target.value)} placeholder="1" />
+        <label>Account ID</label>
+        <input value={accId} onChange={e => setAccId(e.target.value)} placeholder="1" />
+        <label>Principal</label>
+        <input value={principal} onChange={e => setPrincipal(e.target.value)} placeholder="10000" className="figure" />
+        <label>Interest rate (%)</label>
+        <input value={interestRate} onChange={e => setInterestRate(e.target.value)} placeholder="8.5" className="figure" />
+        <label>Tenure (months)</label>
+        <input value={tenureMonths} onChange={e => setTenureMonths(e.target.value)} placeholder="12" className="figure" />
+        <label>Credit score</label>
+        <input value={creditScore} onChange={e => setCreditScore(e.target.value)} placeholder="720" className="figure" />
+        <button className="action teal" onClick={applyLoan}>Submit application</button>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Look up loan</h2>
+        <label>Loan ID</label>
+        <div className="row">
+          <input value={lookupLoanId} onChange={e => setLookupLoanId(e.target.value)} placeholder="1" />
+          <button className="action" onClick={getLoan}>Get</button>
+        </div>
+        <label>By customer ID</label>
+        <div className="row">
+          <input value={custLookupId} onChange={e => setCustLookupId(e.target.value)} placeholder="1" />
+          <button className="action" onClick={getByCustomer}>List loans</button>
+        </div>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Repayment schedule</h2>
+        <label>Loan ID</label>
+        <div className="row">
+          <input value={scheduleLoanId} onChange={e => setScheduleLoanId(e.target.value)} placeholder="1" />
+          <button className="action" onClick={getSchedule}>View schedule</button>
+        </div>
+        <label>Repayment ID (mark paid)</label>
+        <div className="row">
+          <input value={repaymentId} onChange={e => setRepaymentId(e.target.value)} placeholder="1" />
+          <button className="action teal" onClick={payInstallment}>Mark paid</button>
+        </div>
+      </div>
+
+      <div className="ledger-card">
+        <h2>NPA classification</h2>
+        <label>Loan ID</label>
+        <div className="row">
+          <input value={npaLoanId} onChange={e => setNpaLoanId(e.target.value)} placeholder="1" />
+          <button className="action amber" onClick={checkNpa}>Run NPA check</button>
+        </div>
+      </div>
+
+      <ResultBox result={result} />
+    </>
+  )
+}
+
 /* ---------------- Shell ---------------- */
 export default function App() {
   const [session, setSession] = useState(null)
@@ -280,6 +391,7 @@ export default function App() {
     customer: ['Customer & KYC', 'Onboard customers and manage verification status.'],
     account: ['Accounts', 'Open accounts, manage lifecycle, and review the audit trail.'],
     transaction: ['Transactions', 'Process deposits, withdrawals, and view statements.'],
+    loan: ['Loans', 'Originate loans, track repayments, and monitor NPA risk.'],
   }
 
   return (
@@ -292,6 +404,7 @@ export default function App() {
         <div className={`nav-item ${tab === 'customer' ? 'active' : ''}`} onClick={() => setTab('customer')}>Customer & KYC</div>
         <div className={`nav-item ${tab === 'account' ? 'active' : ''}`} onClick={() => setTab('account')}>Accounts</div>
         <div className={`nav-item ${tab === 'transaction' ? 'active' : ''}`} onClick={() => setTab('transaction')}>Transactions</div>
+        <div className={`nav-item ${tab === 'loan' ? 'active' : ''}`} onClick={() => setTab('loan')}>Loans</div>
 
         <div className="session-box">
           <div className="session-role">{session.role}</div>
@@ -307,6 +420,7 @@ export default function App() {
         {tab === 'customer' && <CustomerTab authHeader={authHeader} />}
         {tab === 'account' && <AccountTab authHeader={authHeader} role={session.role} />}
         {tab === 'transaction' && <TransactionTab authHeader={authHeader} />}
+        {tab === 'loan' && <LoanTab authHeader={authHeader} />}
       </div>
     </div>
   )

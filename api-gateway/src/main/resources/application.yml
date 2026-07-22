@@ -26,6 +26,10 @@ spring:
           uri: lb://auth-service
           predicates:
             - Path=/auth/**
+        - id: loan-service
+          uri: lb://loan-service
+          predicates:
+            - Path=/loan/**
 eureka:
   client:
     service-url:
