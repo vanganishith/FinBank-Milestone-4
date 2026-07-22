@@ -64,10 +64,10 @@ function Login({ onLogin }) {
 
         <label>Username</label>
         <input value={username} onChange={e => setUsername(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()} placeholder="teller1" />
+          onKeyDown={e => e.key === 'Enter' && submit()} placeholder="" />
         <label>Password</label>
         <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()} placeholder="••••••••" />
+          onKeyDown={e => e.key === 'Enter' && submit()} placeholder="" />
 
         <button className="action teal" style={{ width: '100%' }} onClick={submit} disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
@@ -75,10 +75,7 @@ function Login({ onLogin }) {
 
         {error && <div className="login-error">{error}</div>}
 
-        <div className="login-demo">
-          Roles: TELLER can process deposits/withdrawals & onboarding.{'\n'}
-          MANAGER can additionally freeze/close accounts.
-        </div>
+        
       </div>
     </div>
   )
