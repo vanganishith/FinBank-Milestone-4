@@ -7,8 +7,10 @@ import com.infosys.loan_service.repository.LoanRepo;
 import com.infosys.loan_service.service.LoanService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
+import com.infosys.loan_service.dto.CollectionItem;
 import java.util.List;
+import com.infosys.loan_service.entity.SagaLog;
+import com.infosys.loan_service.repository.SagaLogRepo;
 
 @RestController
 @RequestMapping("/loan")
@@ -18,6 +20,8 @@ public class LoanController {
     LoanService loanService;
     @Autowired
     LoanRepo loanRepo;
+    @Autowired
+    SagaLogRepo sagaLogRepo;
 
     @PostMapping("/apply")
     public Loan apply(@RequestParam Integer custId, @RequestParam Integer accId,
@@ -59,5 +63,15 @@ public class LoanController {
     @GetMapping("/all")
     public List<Loan> getAll() {
         return (List<Loan>) loanRepo.findAll();
+    }
+
+    @GetMapping("/collections")
+    public List<CollectionItem> collections(@RequestParam(defaultValue = "7") int upcomingWindowDays) {
+        return loanService.getCollectionsWorklist(upcomingWindowDays);
+    }
+
+    @GetMapping("/{loanId}/saga-log")
+    public List<SagaLog> sagaLog(@PathVariable Integer loanId) {
+        return sagaLogRepo.findByLoanIdOrderBySagaLogIdAsc(loanId);
     }
 }

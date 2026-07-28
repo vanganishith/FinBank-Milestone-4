@@ -10,11 +10,15 @@ import com.infosys.loan_service.repository.LoanRepo;
 import com.infosys.loan_service.repository.RepaymentRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
+import com.infosys.loan_service.dto.CollectionItem;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.infosys.loan_service.exception.SagaExecutionException;
 
 @Service
 public class LoanService {
@@ -31,6 +35,8 @@ public class LoanService {
     LoanEventProducer eventProducer;
     @Autowired
     AccountFeignClient accountFeignClient;
+    @Autowired
+    LoanDisbursementSaga disbursementSaga;
 
     private static final int MIN_APPROVAL_SCORE = 650;
 
@@ -106,12 +112,12 @@ public class LoanService {
 
         Loan saved = loanRepo.save(loan);
 
-        saved.setStatus("ACTIVE");
-        saved.setDisbursedAt(LocalDateTime.now());
-        loanRepo.save(saved);
-
-        eventProducer.publishLoanApproved(
-                new LoanApprovedEvent(saved.getLoanId(), accId, principal, LocalDateTime.now().toString()));
+        try {
+            saved = disbursementSaga.disburse(saved);
+        } catch (SagaExecutionException e) {
+            // saga already recorded the failure state on the loan; return as-is
+            return saved;
+        }
 
         generateRepaymentSchedule(saved);
 
@@ -157,6 +163,41 @@ public class LoanService {
             loanRepo.save(loan);
         }
         return loan;
+    }
+
+    public List<CollectionItem> getCollectionsWorklist(int upcomingWindowDays) {
+        List<Repayment> pending = repaymentRepo.findByStatus("PENDING");
+        LocalDate today = LocalDate.now();
+
+        List<CollectionItem> worklist = pending.stream()
+                .filter(r -> {
+                    long daysUntilDue = ChronoUnit.DAYS.between(today, r.getDueDate());
+                    // include anything overdue (negative window) or due within the upcoming window
+                    return daysUntilDue <= upcomingWindowDays;
+                })
+                .map(r -> {
+                    long daysOverdue = ChronoUnit.DAYS.between(r.getDueDate(), today);
+                    String bucket;
+                    if (daysOverdue >= 90)
+                        bucket = "SERIOUSLY_OVERDUE";
+                    else if (daysOverdue > 0)
+                        bucket = "OVERDUE";
+                    else if (daysOverdue == 0)
+                        bucket = "DUE_TODAY";
+                    else
+                        bucket = "UPCOMING";
+
+                    Loan loan = loanRepo.findById(r.getLoanId()).orElse(null);
+                    Integer custId = loan != null ? loan.getCustId() : null;
+
+                    return new CollectionItem(
+                            r.getRepaymentId(), r.getLoanId(), custId, r.getInstallmentNumber(),
+                            r.getDueDate(), r.getAmount(), daysOverdue, bucket);
+                })
+                .sorted(Comparator.comparingLong(CollectionItem::getDaysOverdue).reversed())
+                .collect(Collectors.toList());
+
+        return worklist;
     }
 
     public List<Repayment> getSchedule(Integer loanId) {

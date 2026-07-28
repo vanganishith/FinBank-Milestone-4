@@ -229,15 +229,28 @@ function AccountTab({ authHeader, role }) {
 
 /* ---------------- Transaction tab ---------------- */
 function TransactionTab() {
+  const [stmtAccId, setStmtAccId] = useState('')
+  const [stmtFrom, setStmtFrom] = useState('')
+  const [stmtTo, setStmtTo] = useState('')
   const [accId, setAccId] = useState('')
   const [amount, setAmount] = useState('')
   const [historyId, setHistoryId] = useState('')
   const [result, setResult] = useState(null)
+  const [txnSagaAccId, setTxnSagaAccId] = useState('')
 
   const doTransaction = async (type) => {
     if (!accId || !amount) return
     setResult(await callApi(`/transaction/${type}/${accId}/${amount}`, { method: 'POST' }))
   }
+  const getStatement = async () => {
+    if (!stmtAccId) return
+    const params = new URLSearchParams()
+    if (stmtFrom) params.set('from', `${stmtFrom}T00:00:00`)
+    if (stmtTo) params.set('to', `${stmtTo}T23:59:59`)
+    const qs = params.toString()
+    setResult(await callApi(`/transaction/statement/${stmtAccId}${qs ? `?${qs}` : ''}`))
+  }
+  const getTxnSagaLog = async () => txnSagaAccId && setResult(await callApi(`/transaction/saga-log/${txnSagaAccId}`))
   const getHistory = async () => historyId && setResult(await callApi(`/transaction/account/${historyId}`))
 
   return (
@@ -263,6 +276,28 @@ function TransactionTab() {
         </div>
       </div>
 
+      <div className="ledger-card">
+        <h2>Statement</h2>
+        <div className="hint">Opening/closing balance and running ledger for a date range.</div>
+        <label>Account ID</label>
+        <input value={stmtAccId} onChange={e => setStmtAccId(e.target.value)} placeholder="1" />
+        <label>From (optional)</label>
+        <input type="date" value={stmtFrom} onChange={e => setStmtFrom(e.target.value)} />
+        <label>To (optional)</label>
+        <input type="date" value={stmtTo} onChange={e => setStmtTo(e.target.value)} />
+        <button className="action teal" onClick={getStatement}>Generate statement</button>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Saga execution log</h2>
+        <div className="hint">Step-by-step trail: balance update → transaction save → event publish.</div>
+        <label>Account ID</label>
+        <div className="row">
+          <input value={txnSagaAccId} onChange={e => setTxnSagaAccId(e.target.value)} placeholder="1" />
+          <button className="action" onClick={getTxnSagaLog}>View saga log</button>
+        </div>
+      </div>
+
       <ResultBox result={result} />
     </>
   )
@@ -270,6 +305,8 @@ function TransactionTab() {
 
 /* ---------------- Loan tab ---------------- */
 function LoanTab() {
+  const [sagaLoanId, setSagaLoanId] = useState('')
+  const [collectionsWindow, setCollectionsWindow] = useState('30')
   const [profileCustId, setProfileCustId] = useState('')
   const [profileAccId, setProfileAccId] = useState('')
 
@@ -293,6 +330,12 @@ function LoanTab() {
     if (!profileCustId || !profileAccId) return
     setResult(await callApi(`/loan/credit-profile?custId=${profileCustId}&accId=${profileAccId}`))
   }
+
+  const getCollections = async () => {
+    setResult(await callApi(`/loan/collections?upcomingWindowDays=${collectionsWindow || 7}`))
+  }
+
+  const getSagaLog = async () => sagaLoanId && setResult(await callApi(`/loan/${sagaLoanId}/saga-log`))
 
   const applyLoan = async () => {
     if (!custId || !accId || !principal || !interestRate || !tenureMonths || !creditScore) return
@@ -371,6 +414,26 @@ function LoanTab() {
         <div className="row">
           <input value={npaLoanId} onChange={e => setNpaLoanId(e.target.value)} placeholder="1" />
           <button className="action amber" onClick={checkNpa}>Run NPA check</button>
+        </div>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Collections worklist</h2>
+        <div className="hint">Overdue and upcoming installments across all loans, most overdue first.</div>
+        <label>Upcoming window (days)</label>
+        <div className="row">
+          <input value={collectionsWindow} onChange={e => setCollectionsWindow(e.target.value)} placeholder="30" />
+          <button className="action amber" onClick={getCollections}>Load worklist</button>
+        </div>
+      </div>
+
+      <div className="ledger-card">
+        <h2>Saga execution log</h2>
+        <div className="hint">Step-by-step disbursement trail: Account credit → Loan activation → Event publish.</div>
+        <label>Loan ID</label>
+        <div className="row">
+          <input value={sagaLoanId} onChange={e => setSagaLoanId(e.target.value)} placeholder="26" />
+          <button className="action" onClick={getSagaLog}>View saga log</button>
         </div>
       </div>
 

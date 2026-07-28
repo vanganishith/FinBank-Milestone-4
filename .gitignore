@@ -1,0 +1,9 @@
+node_modules/
+target/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.env

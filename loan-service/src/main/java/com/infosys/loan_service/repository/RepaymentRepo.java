@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface RepaymentRepo extends CrudRepository<Repayment, Integer> {
     List<Repayment> findByLoanId(Integer loanId);
+    List<Repayment> findByStatus(String status);
 }
