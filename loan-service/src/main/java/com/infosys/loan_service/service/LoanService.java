@@ -74,39 +74,50 @@ public class LoanService {
                 suggestion);
     }
 
-    public Loan applyForLoan(Integer custId, Integer accId, Double principal, Double interestRate, Integer tenureMonths,
-            Integer creditScore) {
-        Customer customer = customerFeignClient.getCustomer(custId);
+    public Loan applyForLoan(Integer custId, Integer accId, Double principal, Double interestRate, Integer tenureMonths) {
+    Customer customer = customerFeignClient.getCustomer(custId);
 
-        Loan loan = new Loan();
-        loan.setCustId(custId);
-        loan.setAccId(accId);
-        loan.setPrincipal(principal);
-        loan.setInterestRate(interestRate);
-        loan.setTenureMonths(tenureMonths);
+    Loan loan = new Loan();
+    loan.setCustId(custId);
+    loan.setAccId(accId);
+    loan.setPrincipal(principal);
+    loan.setInterestRate(interestRate);
+    loan.setTenureMonths(tenureMonths);
+    loan.setAppliedAt(LocalDateTime.now());
+
+    if (customer == null) {
+        loan.setStatus("REJECTED");
+        loan.setRejectionReason("Customer not found");
+        return loanRepo.save(loan);
+    }
+
+    if (!"VERIFIED".equals(customer.getKycStatus())) {
+        loan.setStatus("REJECTED");
+        loan.setRejectionReason("KYC not verified. Current status: " + customer.getKycStatus());
+        return loanRepo.save(loan);
+    }
+
+    loan.setStatus("PENDING_REVIEW");
+    return loanRepo.save(loan);
+}
+
+    public Loan approveLoan(Integer loanId, Integer creditScore) {
+        Loan loan = loanRepo.findById(loanId).orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!"PENDING_REVIEW".equals(loan.getStatus())) {
+            throw new com.infosys.loan_service.exception.InvalidRequestException(
+                    "Loan is not pending review. Current status: " + loan.getStatus());
+        }
+
         loan.setCreditScore(creditScore);
-        loan.setAppliedAt(LocalDateTime.now());
-
-        if (customer == null) {
-            loan.setStatus("REJECTED");
-            loan.setRejectionReason("Customer not found");
-            return loanRepo.save(loan);
-        }
-
-        if (!"VERIFIED".equals(customer.getKycStatus())) {
-            loan.setStatus("REJECTED");
-            loan.setRejectionReason("KYC not verified. Current status: " + customer.getKycStatus());
-            return loanRepo.save(loan);
-        }
 
         if (creditScore < MIN_APPROVAL_SCORE) {
             loan.setStatus("REJECTED");
-            loan.setRejectionReason(
-                    "Credit score " + creditScore + " below minimum required (" + MIN_APPROVAL_SCORE + ")");
+            loan.setRejectionReason("Credit score " + creditScore + " below minimum required (" + MIN_APPROVAL_SCORE + ")");
             return loanRepo.save(loan);
         }
 
-        double emi = creditService.calculateEmi(principal, interestRate, tenureMonths);
+        double emi = creditService.calculateEmi(loan.getPrincipal(), loan.getInterestRate(), loan.getTenureMonths());
         loan.setEmi(Math.round(emi * 100.0) / 100.0);
         loan.setStatus("APPROVED");
 
@@ -115,13 +126,30 @@ public class LoanService {
         try {
             saved = disbursementSaga.disburse(saved);
         } catch (SagaExecutionException e) {
-            // saga already recorded the failure state on the loan; return as-is
             return saved;
         }
 
         generateRepaymentSchedule(saved);
-
         return saved;
+    }
+
+    public Loan rejectLoan(Integer loanId, String reason) {
+        Loan loan = loanRepo.findById(loanId).orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!"PENDING_REVIEW".equals(loan.getStatus())) {
+            throw new com.infosys.loan_service.exception.InvalidRequestException(
+                    "Loan is not pending review. Current status: " + loan.getStatus());
+        }
+
+        loan.setStatus("REJECTED");
+        loan.setRejectionReason(reason != null ? reason : "Not specified");
+        return loanRepo.save(loan);
+    }
+
+    public List<Loan> getPendingReview() {
+        return ((List<Loan>) loanRepo.findAll()).stream()
+                .filter(l -> "PENDING_REVIEW".equals(l.getStatus()))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private void generateRepaymentSchedule(Loan loan) {

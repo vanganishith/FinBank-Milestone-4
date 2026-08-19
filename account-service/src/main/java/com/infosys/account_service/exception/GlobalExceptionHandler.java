@@ -28,4 +28,13 @@ public class GlobalExceptionHandler {
         body.put("message", ex.getMessage());
         return ResponseEntity.internalServerError().body(body);
     }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRequest(InvalidRequestException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("message", ex.getMessage());
+        return ResponseEntity.status(400).body(body);
+    }
 }

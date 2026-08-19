@@ -50,4 +50,21 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public String generateCustomerToken(String username, Integer custId) {
+        return Jwts.builder()
+                .subject(username)
+                .claim("role", "CUSTOMER")
+                .claim("custId", custId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public Integer extractCustId(String token) {
+        Object custId = Jwts.parser().verifyWith(getKey()).build()
+                .parseSignedClaims(token).getPayload().get("custId");
+        return custId != null ? ((Number) custId).intValue() : null;
+    }
 }

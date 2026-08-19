@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "account-service")
 public interface AccountFeignClient {
 
-    @GetMapping("/account/{accId}")
+    @GetMapping("/account/internal/{accId}")
     Account getAccount(@PathVariable("accId") Integer accId);
 
     @PutMapping("/account/update")

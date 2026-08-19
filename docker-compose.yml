@@ -1,4 +1,22 @@
 services:
+  mysql:
+    image: mysql:8.4
+    container_name: finbank-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: bankdb
+      MYSQL_USER: finbank
+      MYSQL_PASSWORD: finbank
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - finbank-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   kafka:
     image: apache/kafka:3.7.0
     container_name: finbank-kafka
@@ -15,3 +33,6 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+volumes:
+  finbank-mysql-data:

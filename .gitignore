@@ -6,4 +6,6 @@ target/
 .idea/
 .DS_Store
 Thumbs.db
+finbank-frontend-v2/dist/
+.env
 *.env
